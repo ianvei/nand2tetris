@@ -1,0 +1,80 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/5/CPU.hdl
+/**
+ * The Hack Central Processing unit (CPU).
+ * Parses the binary code in the instruction input and executes it according to the
+ * Hack machine language specification. In the case of a C-instruction, computes the
+ * function specified by the instruction. If the instruction specifies to read a memory
+ * value, the inM input is expected to contain this value. If the instruction specifies
+ * to write a value to the memory, sets the outM output to this value, sets the addressM
+ * output to the target address, and asserts the writeM output (when writeM = 0, any
+ * value may appear in outM).
+ * If the reset input is 0, computes the address of the next instruction and sets the
+ * pc output to that value. If the reset input is 1, sets pc to 0.
+ * Note: The outM and writeM outputs are combinational: they are affected by the
+ * instruction's execution during the current cycle. The addressM and pc outputs are
+ * clocked: although they are affected by the instruction's execution, they commit to
+ * their new values only in the next cycle.
+ */
+CHIP CPU {
+    IN  inM[16], instruction[16], reset;
+    OUT outM[16], writeM, addressM[15], pc[15];
+
+    PARTS:
+    // -------- Instruction type --------
+    // isC = instruction[15]
+    Or(a=instruction[15], b=false, out=isC);
+    Not(in=isC, out=isA);
+
+    // -------- A register input --------
+    // If A-instruction: load A with instruction
+    // If C-instruction: load A with ALU out (only if destA=1)
+    Mux16(a=instruction, b=aluOut, sel=isC, out=aIn);
+
+    // loadA = isA OR (isC & destA)
+    And(a=isC, b=instruction[5], out=loadAfromC);
+    Or(a=isA, b=loadAfromC, out=loadA);
+
+    // Use ARegister so we can legally slice to addressM
+    ARegister(in=aIn, load=loadA, out=aOut, out[0..14]=addressM);
+
+    // -------- D register --------
+    // loadD = isC & destD
+    And(a=isC, b=instruction[4], out=loadD);
+    DRegister(in=aluOut, load=loadD, out=dOut);
+
+    // -------- ALU y input (A vs M) --------
+    Mux16(a=aOut, b=inM, sel=instruction[12], out=aluY);
+
+    // -------- ALU --------
+    ALU(x=dOut, y=aluY,
+        zx=instruction[11], nx=instruction[10],
+        zy=instruction[9],  ny=instruction[8],
+        f=instruction[7],   no=instruction[6],
+        out=aluOut, out=outM, zr=zr, ng=ng);
+
+    // -------- writeM (destM) --------
+    And(a=isC, b=instruction[3], out=writeM);
+
+    // -------- Jump logic --------
+    // pos = (>0) = !ng & !zr
+    Not(in=ng, out=notNg);
+    Not(in=zr, out=notZr);
+    And(a=notNg, b=notZr, out=pos);
+
+    // jgt uses bit0, jeq uses bit1, jlt uses bit2
+    And(a=instruction[0], b=pos, out=jgt);
+    And(a=instruction[1], b=zr,  out=jeq);
+    And(a=instruction[2], b=ng,  out=jlt);
+
+    Or(a=jgt, b=jeq, out=tmp);
+    Or(a=tmp, b=jlt, out=jump);
+
+    // pcLoad = isC & jump
+    And(a=isC, b=jump, out=pcLoad);
+
+    // -------- PC --------
+    PC(in=aOut, load=pcLoad, inc=true, reset=reset, out[0..14]=pc);
+}

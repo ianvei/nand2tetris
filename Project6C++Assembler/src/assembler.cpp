@@ -30,6 +30,29 @@ class FileParser
             {
                 std::cout << "C: " << currentLine << "\n";
                 //basically, do the same as above but use the lookup tables to assemble the binary
+                std::string dest;
+                std::string remainder;
+
+                auto equalsPos = currentLine.find('=');
+                if(equalsPos != std::string::npos) {
+                    dest = currentLine.substr(0, equalsPos);
+                    remainder = currentLine.substr(equalsPos + 1);
+                     std::cout << "dest: " << dest << std::endl;
+                     std::cout << "remainder: " << remainder << std::endl;
+                } else {
+                    //there is no dest instruction
+                    remainder = currentLine; // instruction is comp;jump
+                }
+
+                std::string comp;
+                std::string jump;
+                auto semiColPos = remainder.find(';');
+                if(semiColPos != std::string::npos) {
+                    comp = remainder.substr(0, semiColPos);
+                    jump = remainder.substr(semiColPos + 1);
+                    std::cout << "comp: " << comp << std::endl;
+                    std::cout << "jump: " << jump << std::endl;
+                }
             }
             return "";
         }
@@ -60,7 +83,7 @@ int main()
             // std::cout << line << std::endl;
             fileParser.processCurrentLine(line);
         }
-        table.getLookUpTable();
+        // table.getLookUpTable();
     }
     else
     {

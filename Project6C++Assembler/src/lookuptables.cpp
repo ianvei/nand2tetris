@@ -17,9 +17,9 @@ void LookupTable::getLookUpTable()
 }
 
 void LookupTable::initPreDefinedVariables()
-{   
-    //available registers start at 16
-    R=16;
+{
+    // available registers start at 16
+    R = 16;
     // pre-defined variables
     _lookupTable["SP"] = 0;
     _lookupTable["LCL"] = 1;
@@ -38,26 +38,31 @@ void LookupTable::initPreDefinedVariables()
     _lookupTable["KBD"] = 24576;
 }
 
-bool LookupTable::checkExistingSymbol(const std::string& symbol){
-    if(_lookupTable.find(symbol) != _lookupTable.end())
+bool LookupTable::checkExistingSymbol(const std::string &symbol)
+{
+    if (_lookupTable.find(symbol) != _lookupTable.end())
     {
         return true;
-    } else {
+    }
+    else
+    {
         return false;
     }
 }
 
-void LookupTable::setNewLabel(const std::string& key, int val){
+void LookupTable::setNewLabel(const std::string &key, int val)
+{
     _lookupTable[key] = val;
 }
 
-int LookupTable::getSymbolValue(const std::string&key){
+int LookupTable::getSymbolValue(const std::string &key)
+{
     return _lookupTable[key];
 }
 
-int LookupTable::setSymbol(const std::string&key){
-   _lookupTable[key] = R;
-   R++;
-   return R;
+int LookupTable::setSymbol(const std::string &key)
+{
+    _lookupTable[key] = R;
+    R++;
+    return R;
 }
-

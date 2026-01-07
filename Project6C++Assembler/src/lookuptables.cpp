@@ -28,7 +28,7 @@ void LookupTable::initPreDefinedVariables()
     _lookupTable["THAT"] = 4;
 
     // General purpose registers
-    for (int i = 0; i < 15; i++)
+    for (int i = 0; i <= 15; i++)
     {
         _lookupTable["R" + std::to_string(i)] = i;
     }
@@ -63,6 +63,7 @@ int LookupTable::getSymbolValue(const std::string &key)
 int LookupTable::setSymbol(const std::string &key)
 {
     _lookupTable[key] = R;
+    int assigned = R;
     R++;
-    return R;
+    return assigned;
 }

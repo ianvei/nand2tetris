@@ -184,11 +184,11 @@ void rtrim(std::string &s)
 int main()
 {
     std::string line;
-    std::ifstream assemblyFile("asmfiles/Rect.asm");
+    std::ifstream assemblyFile("asmfiles/Pong.asm");
     int pcLine = 0;
     LookupTable table;
     FileParser fileParser(table);
-    std::ofstream outFile("asmfiles/Rect.bin");
+    std::ofstream outFile("asmfiles/Pong.hack");
     if (!outFile)
     {
         std::cout << "Error: Could not open output file" << std::endl;

@@ -159,11 +159,11 @@ void rtrim(std::string& s) {
 int main()
 {
     std::string line;
-    std::ifstream assemblyFile("asmfiles/Max.asm");
+    std::ifstream assemblyFile("asmfiles/Rect.asm");
     int pcLine = 0;
     LookupTable table;
     FileParser fileParser(table);
-    std::ofstream outFile("asmfiles/Max.bin");
+    std::ofstream outFile("asmfiles/Rect.bin");
     if (!outFile) {
         std::cout << "Error: Could not open output file" << std::endl;
         return 1;

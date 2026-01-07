@@ -4,33 +4,86 @@
 #include <bitset>
 #include "lookuptables.h"
 #include "codelookup.h"
-
+#include <cctype>
+#include <algorithm>
 
 class FileParser
 {
-    // parse individual line, return binary?
-    // detect if C instruction or A instruction
     public:
+        FileParser(LookupTable& LookupTable) : table(LookupTable){}
         std::string currentLine;
+        void processSymbols(std::string& line, int pcLine){
+            //A instruction
+            currentLine = line;
+            //jump label
+            if(currentLine[0] == '('){
+                //set the string inside the () to the map, with pcLine as the value
+                std::string label = currentLine.substr(1, currentLine.size() - 2);
+                if(!table.checkExistingSymbol(label)){
+                    table.setNewLabel(label, pcLine);
+                }
+            }
+        }
 
-        std::string processCurrentLine(std::string line) {
+        bool isNumericAInstruction(const std::string& line) {
+            if (line.size() <= 1 || line[0] != '@') {
+                return false;
+            }
+
+            const std::string value = line.substr(1);
+
+            return std::all_of(
+                value.begin(),
+                value.end(),
+                [](unsigned char c) {
+                    return std::isdigit(c);
+                }
+            );
+        }
+
+       void processCurrentLine(std::string line, std::ostream& out) {
             currentLine = line;
 
             //A instruction
-            if(currentLine[0] == '@'){
-                std::cout << "A: " << currentLine << "\n";
-                int aValue = std::stoi(currentLine.substr(1));
-                //always safe because 32767 is max value that fits in 15 bits
-                //write this line to the output file
-                std::bitset bitset = std::bitset<16>(aValue);
-                std::cout << "A: " << currentLine << "\n";
-                std::cout << "A: " << bitset << "\n";
-                std::cout << bitset << std::endl;
+            if(currentLine[0] == '@' || currentLine[0] == '('){
+                if(currentLine[0] == '('){
+                    return;
+                }
+
+                //variable - check if currentLine[0] is @ (a instruction)
+                // and currentLine[1] is NOT an integer.
+                if(currentLine[0] == '@' 
+                    && currentLine.size() > 1
+                    && !isNumericAInstruction(currentLine)
+                ) {
+                    const std::string symbol = currentLine.substr(1);
+                    if(!table.checkExistingSymbol(symbol)){
+                        const int symbolAddress = table.setSymbol(symbol);
+                        //DO SOMETHING WITH ADDRESS
+                        std::bitset bitset = std::bitset<16>(symbolAddress);
+                        std::cout << bitset << std::endl;
+                        out << bitset << '\n';
+                    } else {
+                        const int symbolAddress = table.getSymbolValue(symbol);
+                        //DO SOMETHING WITH ADDRESS
+                        std::bitset bitset = std::bitset<16>(symbolAddress);
+                        std::cout << bitset << std::endl;
+                        out << bitset << '\n';
+                    }
+                    //lookup symbol in symbol table
+                    //if not there, assign it an address
+                } else{
+                    int aValue = std::stoi(currentLine.substr(1));
+                    //always safe because 32767 is max value that fits in 15 bits
+                    //write this line to the output file
+                    std::bitset bitset = std::bitset<16>(aValue);
+                    std::cout << bitset << std::endl;
+                    out << bitset << '\n';
+                }
             } 
             //C instruction
             else 
             {
-                std::cout << "C: " << currentLine << "\n";
                 //basically, do the same as above but use the lookup tables to assemble the binary
                 std::string dest;
                 std::string remainder;  
@@ -42,12 +95,9 @@ class FileParser
                 auto equalsPos = currentLine.find('=');
                 if(equalsPos != std::string::npos) {
                     dest = currentLine.substr(0, equalsPos);
-                    // std::cout << CodeLookup::dest(dest) << std::endl;
                     auto destInstruction = CodeLookup::dest(dest);
                     remainder = currentLine.substr(equalsPos + 1);
-                    //  std::cout << "dest: " << dest << std::endl;
                     newInstruction |= (std::bitset<16>(destInstruction.to_ulong()) << 3);
-                    //  std::cout << "remainder: " << remainder << std::endl;
                 } else {
                     //there is no dest instruction
                     remainder = currentLine; // instruction is comp;jump
@@ -59,43 +109,90 @@ class FileParser
                 if(semiColPos != std::string::npos) {
                     comp = remainder.substr(0, semiColPos);
                     jump = remainder.substr(semiColPos + 1);
-
                     auto compInstruction = CodeLookup::comp(comp);
                     auto jumpInstruction = CodeLookup::jump(jump);
                     newInstruction |= (std::bitset<16>(compInstruction.to_ulong()) << 6);
                     newInstruction |= std::bitset<16>(jumpInstruction.to_ulong());
-                    // std::cout << "comp: " << comp << std::endl;
-                    // std::cout << "jump: " << jump << std::endl;
-                    // std::cout << CodeLookup::comp(comp) << std::endl;
-                    // std::cout << CodeLookup::jump(jump) << std::endl;
-
                 } else {
                     comp = remainder.substr(0, semiColPos);
                     auto compInstruction = CodeLookup::comp(comp);
                     newInstruction |= (std::bitset<16>(compInstruction.to_ulong()) << 6);
+                    // last 3 bits always 0 if no jump condition
                     const std::bitset<3> noJumpConst = 000;
                     newInstruction |= std::bitset<16>(noJumpConst.to_ulong());
-                    std::cout << "comp: " << comp << std::endl;
-                    std::cout << CodeLookup::comp(comp) << std::endl;
                 }
                 std::cout << newInstruction << std::endl;
+                out << newInstruction << '\n';
             }
-            return "";
         }
+        
+        private:
+            LookupTable& table;
     
 };
 
+std::string trimInlineComments(std::string string){
+    auto commentStartPos = string.find("//");
+    std::string cleanString = string;
+    if(commentStartPos != std::string::npos) {
+        cleanString = string.substr(0, commentStartPos);
+    }
+
+    return cleanString;
+}
+
+void ltrim(std::string& s) {
+    const auto pos = s.find_first_not_of(" \t\n\r\f\v");
+    if (pos == std::string::npos) {
+        s.clear();              // string was all whitespace
+    } else {
+        s.erase(0, pos);
+    }
+}
+
+void rtrim(std::string& s) {
+    const auto pos = s.find_last_not_of(" \t\n\r\f\v");
+    if (pos == std::string::npos) s.clear();
+    else s.erase(pos + 1);
+}
+
 int main()
 {
-    FileParser fileParser;
     std::string line;
-    std::ifstream assemblyFile("asmfiles/Add.asm");
-
+    std::ifstream assemblyFile("asmfiles/Max.asm");
+    int pcLine = 0;
     LookupTable table;
+    FileParser fileParser(table);
+    std::ofstream outFile("asmfiles/Max.bin");
+    if (!outFile) {
+        std::cout << "Error: Could not open output file" << std::endl;
+        return 1;
+    }
     if (assemblyFile.is_open())
     {
+        while(std::getline(assemblyFile, line)){
+            ltrim(line);
+            if (line.empty())
+            {
+                continue;
+            }
+            if(line[0] == '/' && line[1] == '/')
+            {
+                continue;
+            }
+            line = trimInlineComments(line);
+            ltrim(line);
+            rtrim(line);
+            fileParser.processSymbols(line, pcLine);
+            if(line[0] != '('){
+                pcLine++;
+            }           
+        }
+        assemblyFile.clear();             
+        assemblyFile.seekg(0, std::ios::beg); 
         while (std::getline(assemblyFile, line))
         {
+            ltrim(line);
             // if line is empty or starts with //, skip it
             if (line.empty())
             {
@@ -106,10 +203,11 @@ int main()
                 continue;
             }
             // process line with file parser
-            // std::cout << line << std::endl;
-            fileParser.processCurrentLine(line);
+            line = trimInlineComments(line);
+            ltrim(line);
+            rtrim(line);
+            fileParser.processCurrentLine(line, outFile);
         }
-        // table.getLookUpTable();
     }
     else
     {

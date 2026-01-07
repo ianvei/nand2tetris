@@ -17,5 +17,4 @@ class CodeLookup {
         static const std::unordered_map<std::string, std::bitset<3>> destTable;
         static const std::unordered_map<std::string, std::bitset<3>> jumpTable;
 };
-
 #endif
